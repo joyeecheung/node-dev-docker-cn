@@ -1,0 +1,46 @@
+# registry.cn-hangzhou.aliyuncs.com/acs doesn't have zesty mirror at the moment
+# See https://yq.aliyun.com/articles/29941 to set up the accelerator
+FROM ubuntu:zesty
+
+MAINTAINER joyeec9h3@gmail.com
+
+# Use aliyun mirror
+RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+RUN sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+
+# need the sources first
+RUN apt-get update
+# install tools
+RUN apt-get install -y build-essential python make
+RUN apt-get install -y vim git wrk curl wget sudo strace
+RUN apt-get update
+# install llvm 3.9
+# Hold for 4.x because they only have 32-bit support for linux right now
+# 3.9 don't need range files and is cross-platform
+RUN apt-get install -y clang-3.9 lldb-3.9 llvm-3.9
+RUN ln -s /usr/bin/clang-3.9 /usr/bin/clang
+RUN ln -s /usr/bin/clang++-3.9 /usr/bin/clang++
+
+# ports used by net tests
+ENV NODE_COMMON_PORT=12346
+EXPOSE 12346
+# debug port used by v8 debugger
+EXPOSE 5858
+# debug port used by v8 insepctor
+EXPOSE 9229
+
+# set up user
+RUN adduser --disabled-password --gecos '' node-dev
+RUN adduser node-dev sudo
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+USER node-dev
+WORKDIR /home/node-dev
+
+ENV HOME /home/node-dev
+ENV TNVM_DIR /home/node-dev/.tnvm
+
+# install tnvm
+RUN wget -O- https://raw.githubusercontent.com/aliyun-node/tnvm/master/install.sh | bash
+RUN /bin/bash -c "source /home/node-dev/.tnvm/tnvm.sh && \
+    tnvm install node-v6.9.2 && \
+    tnvm use node-v6.9.2"
